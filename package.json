@@ -15,9 +15,9 @@
     "build": "npm run build:renderer"
   },
   "dependencies": {
-    "@cornerstonejs/core": "5.8.9",
-    "@cornerstonejs/dicom-image-loader": "5.8.9",
-    "@cornerstonejs/tools": "5.8.9",
+    "@cornerstonejs/core": "5.15.2",
+    "@cornerstonejs/dicom-image-loader": "5.15.2",
+    "@cornerstonejs/tools": "5.15.2",
     "7zip-bin": "5.2.0",
     "dicom-parser": "1.8.21"
   },

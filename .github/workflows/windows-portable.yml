@@ -43,10 +43,11 @@ jobs:
         shell: pwsh
         run: |
           $exe = Resolve-Path "release/CBCT Viewer.exe"
-          $bytes = [System.IO.File]::ReadAllBytes($exe)
+          $applicationExe = Resolve-Path "release/win-unpacked/CBCT Viewer.exe"
+          $bytes = [System.IO.File]::ReadAllBytes($applicationExe)
           $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
           $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
-          if ($machine -ne 0x8664) { throw "Expected Windows x64 PE (0x8664), got 0x$($machine.ToString('X4'))" }
+          if ($machine -ne 0x8664) { throw "Expected x64 application process (0x8664), got 0x$($machine.ToString('X4'))" }
           $process = Start-Process -FilePath $exe -ArgumentList "--smoke-test" -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Portable application smoke test failed with exit code $($process.ExitCode)" }
 

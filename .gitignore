@@ -3,3 +3,8 @@ build/
 dist/
 .DS_Store
 .swiftpm/
+.vite/
+node_modules/
+release/
+coverage/
+.cache/

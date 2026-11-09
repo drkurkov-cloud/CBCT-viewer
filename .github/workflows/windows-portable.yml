@@ -1,0 +1,73 @@
+name: Windows x64 portable
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: License policy
+        run: npm run licenses:check
+
+      - name: Type and geometry tests
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Build Windows x64 portable executable
+        run: |
+          npm run build:renderer
+          npx electron-builder --win portable --x64
+
+      - name: Verify PE architecture and launch smoke test
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path "release/CBCT Viewer.exe"
+          $bytes = [System.IO.File]::ReadAllBytes($exe)
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+          $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+          if ($machine -ne 0x8664) { throw "Expected Windows x64 PE (0x8664), got 0x$($machine.ToString('X4'))" }
+          $process = Start-Process -FilePath $exe -ArgumentList "--smoke-test" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Portable application smoke test failed with exit code $($process.ExitCode)" }
+
+      - name: Assemble USB package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force "usb-package/Data/Studies" | Out-Null
+          Copy-Item "release/CBCT Viewer.exe" "usb-package/CBCT Viewer.exe"
+          Copy-Item "portable/README.txt" "usb-package/README.txt"
+          Copy-Item "THIRD_PARTY_NOTICES.md" "usb-package/THIRD_PARTY_NOTICES.md"
+          Set-Content -Path "usb-package/Data/Studies/.keep" -Value "Portable study data is stored here."
+          Compress-Archive -Path "usb-package/*" -DestinationPath "CBCT_Viewer_USB_Package.zip" -CompressionLevel Optimal
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path "CBCT_Viewer_USB_Package.zip"))
+          try {
+            if (-not ($zip.Entries | Where-Object { $_.FullName -eq "CBCT Viewer.exe" })) { throw "CBCT Viewer.exe missing from USB ZIP root" }
+          } finally { $zip.Dispose() }
+
+      - name: Upload verified USB package
+        uses: actions/upload-artifact@v4
+        with:
+          name: CBCT_Viewer_USB_Package
+          path: CBCT_Viewer_USB_Package.zip
+          if-no-files-found: error
+          retention-days: 30

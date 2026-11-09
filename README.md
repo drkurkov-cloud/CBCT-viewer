@@ -1,4 +1,22 @@
-# CBCT Viewer for macOS — v0.2
+# CBCT Viewer Portable — v0.3
+
+The primary release target is now a portable Windows x64 dental CBCT/DICOM viewer. The existing native macOS v0.2 prototype remains in `Sources/` as a reference implementation of the shared geometry rules.
+
+## Windows portable MVP
+
+- Runs from `CBCT Viewer.exe` without installation or administrator rights.
+- Stores its library in `Data/Studies` beside the executable, suitable for a USB drive.
+- Import Hub supports cloud/email links, CD/DVD, USB, local and network folders, ZIP and 7z archives.
+- Recursively detects DICOM, groups compatible series, and selects the largest CT/CBCT volume.
+- Copies DICOM files byte-for-byte without renaming them; study folders use `Patient Name_YYYY-MM-DD`.
+- Shows full patient name and study date in the library and patient strip.
+- Cornerstone3D MPR: axial, coronal and sagittal planes with synchronized crosshair, WL/WW, pan, zoom, scrolling and length measurements.
+- Dental workspace: automatic dental curve, panoramic reconstruction and movable cross-section.
+- A separate disabled licensing module is retained for future activation.
+
+The verified artifact is produced by `.github/workflows/windows-portable.yml` as `CBCT_Viewer_USB_Package.zip`. CI validates TypeScript, geometry/domain tests, x64 PE architecture, application startup, ZIP contents and production dependency licenses.
+
+## Earlier macOS prototype
 
 Independent native macOS prototype of a dental CBCT/DICOM viewer. RadiAnt is used only as a functional/interaction reference; no proprietary source code or UI assets are used.
 

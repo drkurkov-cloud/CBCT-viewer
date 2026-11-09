@@ -1,0 +1,48 @@
+{
+  "name": "cbct-viewer-portable",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Portable dental CBCT/DICOM viewer for Windows x64",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "licenses:check": "node scripts/check-licenses.mjs",
+    "build:renderer": "vite build",
+    "build:win": "npm run typecheck && npm run test && npm run build:renderer && electron-builder --win portable --x64",
+    "build": "npm run build:renderer"
+  },
+  "dependencies": {
+    "@cornerstonejs/core": "5.8.9",
+    "@cornerstonejs/dicom-image-loader": "5.8.9",
+    "@cornerstonejs/tools": "5.8.9",
+    "7zip-bin": "5.2.0",
+    "dicom-parser": "1.8.21"
+  },
+  "devDependencies": {
+    "@types/node": "24.7.2",
+    "electron": "38.2.1",
+    "electron-builder": "26.0.12",
+    "typescript": "5.9.3",
+    "vite": "7.1.9",
+    "vitest": "3.2.4"
+  },
+  "build": {
+    "appId": "com.prodent.cbctviewer",
+    "productName": "CBCT Viewer",
+    "asar": true,
+    "asarUnpack": ["node_modules/7zip-bin/**"],
+    "directories": { "output": "release" },
+    "files": ["electron/**/*", "dist-renderer/**/*", "package.json"],
+    "win": {
+      "target": [{ "target": "portable", "arch": ["x64"] }],
+      "artifactName": "CBCT Viewer.exe"
+    },
+    "portable": {
+      "artifactName": "CBCT Viewer.exe",
+      "requestExecutionLevel": "user"
+    }
+  }
+}

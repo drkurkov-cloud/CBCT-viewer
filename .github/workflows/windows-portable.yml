@@ -33,10 +33,11 @@ jobs:
           npm run typecheck
           npm test
 
+      - name: Build renderer
+        run: npm run build:renderer
+
       - name: Build Windows x64 portable executable
-        run: |
-          npm run build:renderer
-          npx electron-builder --win portable --x64
+        run: npx electron-builder --win portable --x64
 
       - name: Verify PE architecture and launch smoke test
         shell: pwsh

@@ -267,6 +267,9 @@ app.whenReady().then(async () => {
   licenseStatus();
   await ensureDataLayout();
   await createWindow();
-  if (smokeMode) setTimeout(() => app.exit(2), 30000);
+  // The first packaged start on a clean Windows runner includes portable
+  // extraction and parsing the Cornerstone imaging bundle.  Keep the smoke
+  // watchdog long enough for that cold path while still failing a hung app.
+  if (smokeMode) setTimeout(() => app.exit(2), 120000);
 });
 app.on('window-all-closed', () => app.quit());

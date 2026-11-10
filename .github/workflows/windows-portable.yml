@@ -48,7 +48,9 @@ jobs:
           $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
           $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
           if ($machine -ne 0x8664) { throw "Expected x64 application process (0x8664), got 0x$($machine.ToString('X4'))" }
+          $env:CBCT_SMOKE_REPORT = Join-Path $PWD "smoke-report.json"
           $process = Start-Process -FilePath $exe -ArgumentList "--smoke-test" -Wait -PassThru
+          if (Test-Path $env:CBCT_SMOKE_REPORT) { Get-Content $env:CBCT_SMOKE_REPORT }
           if ($process.ExitCode -ne 0) { throw "Portable application smoke test failed with exit code $($process.ExitCode)" }
 
       - name: Assemble USB package

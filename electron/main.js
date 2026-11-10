@@ -20,7 +20,14 @@ const portableRoot = process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(app.get
 const dataRoot = smokeMode ? path.join(app.getPath('temp'), 'CBCT-Viewer-Smoke') : path.join(portableRoot, 'Data');
 const studiesRoot = path.join(dataRoot, 'Studies');
 const indexPath = path.join(dataRoot, 'studies.json');
+const smokeReportPath = process.env.CBCT_SMOKE_REPORT;
+const rendererDiagnostics = [];
 let mainWindow;
+
+async function writeSmokeReport(payload) {
+  if (!smokeReportPath) return;
+  await fs.writeFile(smokeReportPath, `${JSON.stringify({ ...payload, rendererDiagnostics }, null, 2)}\n`, 'utf8');
+}
 
 function cleanPatientName(value) {
   const normalized = String(value || '').replace(/\^/g, ' ').replace(/\s+/g, ' ').trim() || 'Unknown Patient';
@@ -228,6 +235,15 @@ async function createWindow() {
     backgroundColor: '#090c10', titleBarStyle: 'hidden', titleBarOverlay: { color: '#0c1117', symbolColor: '#dce7f2', height: 44 },
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
+  if (smokeMode) {
+    mainWindow.webContents.on('console-message', (_event, details) => {
+      rendererDiagnostics.push({ type: 'console', level: details.level, message: details.message, sourceId: details.sourceId, lineNumber: details.lineNumber });
+    });
+    mainWindow.webContents.on('render-process-gone', (_event, details) => rendererDiagnostics.push({ type: 'render-process-gone', ...details }));
+    mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+      rendererDiagnostics.push({ type: 'did-fail-load', errorCode, errorDescription, validatedURL });
+    });
+  }
   await mainWindow.loadFile(path.join(__dirname, '..', 'dist-renderer', 'index.html'));
 }
 
@@ -279,10 +295,12 @@ app.whenReady().then(async () => {
       if (!result.shell || !result.importHub || !result.bridge || !result.studies) {
         throw new Error(`Incomplete renderer startup: ${JSON.stringify(result)}`);
       }
+      await writeSmokeReport({ ok: true, result });
       clearTimeout(smokeWatchdog);
       app.exit(0);
     } catch (error) {
       console.error('Packaged startup verification failed:', error);
+      await writeSmokeReport({ ok: false, error: error instanceof Error ? { message: error.message, stack: error.stack } : String(error) });
       clearTimeout(smokeWatchdog);
       app.exit(3);
     }

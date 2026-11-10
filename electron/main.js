@@ -236,8 +236,8 @@ async function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   if (smokeMode) {
-    mainWindow.webContents.on('console-message', (_event, details) => {
-      rendererDiagnostics.push({ type: 'console', level: details.level, message: details.message, sourceId: details.sourceId, lineNumber: details.lineNumber });
+    mainWindow.webContents.on('console-message', (_event, level, message, lineNumber, sourceId) => {
+      rendererDiagnostics.push({ type: 'console', level, message, sourceId, lineNumber });
     });
     mainWindow.webContents.on('render-process-gone', (_event, details) => rendererDiagnostics.push({ type: 'render-process-gone', ...details }));
     mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {

@@ -266,10 +266,26 @@ ipcMain.on('renderer:ready', () => {
 app.whenReady().then(async () => {
   licenseStatus();
   await ensureDataLayout();
+  const smokeWatchdog = smokeMode ? setTimeout(() => app.exit(2), 120000) : undefined;
   await createWindow();
-  // The first packaged start on a clean Windows runner includes portable
-  // extraction and parsing the Cornerstone imaging bundle.  Keep the smoke
-  // watchdog long enough for that cold path while still failing a hung app.
-  if (smokeMode) setTimeout(() => app.exit(2), 120000);
+  if (smokeMode) {
+    try {
+      const result = await mainWindow.webContents.executeJavaScript(`(async () => ({
+        shell: Boolean(document.querySelector('#app .shell')),
+        importHub: Boolean(document.querySelector('#import-dialog .source-grid')),
+        bridge: Boolean(window.cbct && typeof window.cbct.listStudies === 'function'),
+        studies: Array.isArray(await window.cbct.listStudies())
+      }))()`);
+      if (!result.shell || !result.importHub || !result.bridge || !result.studies) {
+        throw new Error(`Incomplete renderer startup: ${JSON.stringify(result)}`);
+      }
+      clearTimeout(smokeWatchdog);
+      app.exit(0);
+    } catch (error) {
+      console.error('Packaged startup verification failed:', error);
+      clearTimeout(smokeWatchdog);
+      app.exit(3);
+    }
+  }
 });
 app.on('window-all-closed', () => app.quit());

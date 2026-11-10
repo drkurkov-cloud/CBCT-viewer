@@ -82,9 +82,9 @@ let initialized = false;
 let pendingLinkKind = 'cloud';
 
 const viewportDefinitions = [
-  { viewportId: 'AXIAL', element: byId('viewport-axial'), orientation: cornerstone.Enums.OrientationAxis.AXIAL },
-  { viewportId: 'CORONAL', element: byId('viewport-coronal'), orientation: cornerstone.Enums.OrientationAxis.CORONAL },
-  { viewportId: 'SAGITTAL', element: byId('viewport-sagittal'), orientation: cornerstone.Enums.OrientationAxis.SAGITTAL }
+  { viewportId: 'AXIAL', element: byId<HTMLDivElement>('viewport-axial'), orientation: cornerstone.Enums.OrientationAxis.AXIAL },
+  { viewportId: 'CORONAL', element: byId<HTMLDivElement>('viewport-coronal'), orientation: cornerstone.Enums.OrientationAxis.CORONAL },
+  { viewportId: 'SAGITTAL', element: byId<HTMLDivElement>('viewport-sagittal'), orientation: cornerstone.Enums.OrientationAxis.SAGITTAL }
 ];
 
 async function initializeImaging() {
@@ -92,7 +92,7 @@ async function initializeImaging() {
   await cornerstone.init();
   await dicomImageLoader.init({ maxWebWorkers: Math.max(1, Math.min(6, navigator.hardwareConcurrency || 2)) });
   await tools.init();
-  [tools.CrosshairsTool, tools.WindowLevelTool, tools.PanTool, tools.ZoomTool, tools.LengthTool, tools.StackScrollMouseWheelTool].forEach((tool) => tools.addTool(tool));
+  [tools.CrosshairsTool, tools.WindowLevelTool, tools.PanTool, tools.ZoomTool, tools.LengthTool, tools.StackScrollTool].forEach((tool) => tools.addTool(tool));
   initialized = true;
 }
 
@@ -124,22 +124,28 @@ async function openStudy(id: string) {
     for (let index = 0; index < study.files.length; index += 1) {
       setStatus(`Loading DICOM ${index + 1} of ${study.files.length}…`);
       const bytes = await window.cbct.readFile(study.files[index]);
-      imageIds.push(dicomImageLoader.wadouri.fileManager.add(new Blob([bytes], { type: 'application/dicom' })));
+      const arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+      imageIds.push(dicomImageLoader.wadouri.fileManager.add(new Blob([arrayBuffer], { type: 'application/dicom' })));
     }
     renderingEngine?.destroy();
     if (activeToolGroup) tools.ToolGroupManager.destroyToolGroup(activeToolGroup.id);
     const engineId = `engine-${Date.now()}`; const toolGroupId = `tools-${Date.now()}`;
     renderingEngine = new cornerstone.RenderingEngine(engineId);
-    renderingEngine.setViewports(viewportDefinitions.map((item) => ({ viewportId: item.viewportId, element: item.element,
-      type: cornerstone.Enums.ViewportType.ORTHOGRAPHIC, defaultOptions: { orientation: item.orientation, background: [0.025, 0.035, 0.05] as [number, number, number] } })));
+    const viewportInputs: cornerstone.Types.PublicViewportInput[] = viewportDefinitions.map((item) => ({
+      viewportId: item.viewportId,
+      element: item.element,
+      type: cornerstone.Enums.ViewportType.ORTHOGRAPHIC,
+      defaultOptions: { orientation: item.orientation, background: [0.025, 0.035, 0.05] }
+    }));
+    renderingEngine.setViewports(viewportInputs);
     const volumeId = `cornerstoneStreamingImageVolume:cbct-${Date.now()}`;
     const volume = await cornerstone.volumeLoader.createAndCacheVolume(volumeId, { imageIds }); activeVolume = volume; volume.load();
     await cornerstone.setVolumesForViewports(renderingEngine, [{ volumeId }], viewportDefinitions.map((item) => item.viewportId));
     activeToolGroup = tools.ToolGroupManager.createToolGroup(toolGroupId)!;
-    ['Crosshairs', 'WindowLevel', 'Pan', 'Zoom', 'Length', 'StackScrollMouseWheel'].forEach((name) => activeToolGroup!.addTool(name));
+    ['Crosshairs', 'WindowLevel', 'Pan', 'Zoom', 'Length', 'StackScroll'].forEach((name) => activeToolGroup!.addTool(name));
     viewportDefinitions.forEach((item) => activeToolGroup!.addViewport(item.viewportId, engineId));
     activeToolGroup.setToolActive('Crosshairs', { bindings: [{ mouseButton: tools.Enums.MouseBindings.Primary }] });
-    activeToolGroup.setToolActive('StackScrollMouseWheel', { bindings: [{ mouseButton: tools.Enums.MouseBindings.Wheel }] });
+    activeToolGroup.setToolActive('StackScroll', { bindings: [{ mouseButton: tools.Enums.MouseBindings.Wheel }] });
     renderingEngine.renderViewports(viewportDefinitions.map((item) => item.viewportId)); renderDental(volume);
     setStatus(`${study.patientName} · ${study.displayDate} · ${study.sliceCount} images`);
   } catch (error) { setStatus('Could not open study'); alert(error instanceof Error ? error.message : String(error)); }
